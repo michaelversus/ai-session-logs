@@ -14,7 +14,7 @@ trap cleanup EXIT
 
 TMP="$(mktemp -d)"
 
-# --- Codex + CODEX_THREAD_ID ---
+# --- Codex + session index match ---
 mkdir -p "$TMP/h1/.codex"
 echo '{"id":"mythreadid","thread_name":"fixture","updated_at":"2026-01-01T00:00:00Z"}' >"$TMP/h1/.codex/session_index.jsonl"
 mkdir -p "$TMP/h1/.codex/sessions/2026/01/01"
@@ -23,13 +23,28 @@ mkdir -p "$TMP/proj1"
 git -C "$TMP/proj1" init -q
 (
   export HOME="$TMP/h1"
-  export CODEX_THREAD_ID=mythreadid
+  unset CODEX_THREAD_ID || true
   out="$(bash "$SCRIPT" --project-root="$TMP/proj1" --tool codex --no-copy)"
   echo "$out" | grep -q '^TOOL=codex' || err "codex forced: missing TOOL=codex"
-  echo "$out" | grep -q '^SOURCE=.*mythreadid\.jsonl$' || err "codex forced: SOURCE should match thread id file"
+  echo "$out" | grep -q '^SOURCE=.*mythreadid\.jsonl$' || err "codex forced: SOURCE should match indexed file"
   echo "$out" | grep -q '^CONFIDENCE=high' || err "codex forced: CONFIDENCE high"
   echo "$out" | grep -q '^SKILL_TRACE=verified' || err "codex forced: SKILL_TRACE verified"
-  pass "codex --tool with CODEX_THREAD_ID match"
+  pass "codex --tool with session index match"
+)
+
+# --- Codex ignores CODEX_THREAD_ID without skill trace ---
+mkdir -p "$TMP/h1b/.codex/sessions/2026/01/01"
+echo '{"role":"user","note":"no trace here"}' >"$TMP/h1b/.codex/sessions/2026/01/01/rollout-abc-activethread.jsonl"
+mkdir -p "$TMP/proj1b"
+git -C "$TMP/proj1b" init -q
+(
+  export HOME="$TMP/h1b"
+  export CODEX_THREAD_ID=activethread
+  if bash "$SCRIPT" --project-root="$TMP/proj1b" --tool codex --no-copy 2>/dev/null; then
+    err "codex trace: CODEX_THREAD_ID without trace should not bypass skill trace"
+  else
+    pass "codex CODEX_THREAD_ID does not bypass skill trace"
+  fi
 )
 
 # --- Invalid flag exit 2 ---
@@ -102,6 +117,17 @@ touch -t 202001010000 "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d2/older
   pass "cursor prefers older transcript that contains skill trace"
 )
 
+# --- Skill trace accepts package/plugin name ---
+mkdir -p "$TMP/h4b/.cursor/projects/$slug/agent-transcripts"
+echo '{"n":"package","use":"ai-session-logs"}' >"$TMP/h4b/.cursor/projects/$slug/agent-transcripts/package-name.jsonl"
+(
+  export HOME="$TMP/h4b"
+  out="$(bash "$SCRIPT" --project-root="$PROJ" --tool cursor --no-copy)"
+  echo "$out" | grep -q '^SOURCE=.*package-name\.jsonl$' || err "package trace: expected ai-session-logs transcript"
+  echo "$out" | grep -q '^SKILL_TRACE=verified' || err "package trace: SKILL_TRACE verified"
+  pass "skill trace accepts ai-session-logs package name"
+)
+
 (
   export HOME="$TMP/h4"
   out="$(bash "$SCRIPT" --project-root="$PROJ" --tool cursor --no-copy --skip-skill-trace)"
@@ -110,10 +136,10 @@ touch -t 202001010000 "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d2/older
   pass "cursor --skip-skill-trace picks newest"
 )
 
-# --- Codex session_index.jsonl order beats mtime (both have skill trace) ---
+# --- Codex session_index.jsonl updated_at order beats file mtime and line order ---
 mkdir -p "$TMP/h5/.codex/sessions"
-echo '{"id":"oldidx","thread_name":"old","updated_at":"2020-01-01T00:00:00Z"}' >"$TMP/h5/.codex/session_index.jsonl"
-echo '{"id":"newidx","thread_name":"new","updated_at":"2026-01-02T00:00:00Z"}' >>"$TMP/h5/.codex/session_index.jsonl"
+echo '{"id":"newidx","thread_name":"new","updated_at":"2026-01-02T00:00:00Z"}' >"$TMP/h5/.codex/session_index.jsonl"
+echo '{"id":"oldidx","thread_name":"old","updated_at":"2020-01-01T00:00:00Z"}' >>"$TMP/h5/.codex/session_index.jsonl"
 echo '{"x":1,"use":"session-transcript"}' >"$TMP/h5/.codex/sessions/rollout-oldidx.jsonl"
 echo '{"x":2,"use":"session-transcript"}' >"$TMP/h5/.codex/sessions/rollout-newidx.jsonl"
 touch -t 205001010000 "$TMP/h5/.codex/sessions/rollout-oldidx.jsonl"
@@ -124,8 +150,8 @@ git -C "$TMP/proj5" init -q
   export HOME="$TMP/h5"
   unset CODEX_THREAD_ID || true
   out="$(bash "$SCRIPT" --project-root="$TMP/proj5" --tool codex --no-copy)"
-  echo "$out" | grep -q '^SOURCE=.*rollout-newidx\.jsonl$' || err "codex index: expected newer-index session (newidx) despite older mtime"
-  pass "codex session_index order preferred over mtime"
+  echo "$out" | grep -q '^SOURCE=.*rollout-newidx\.jsonl$' || err "codex index: expected newer updated_at session (newidx) despite older mtime"
+  pass "codex session_index updated_at order preferred over mtime"
 )
 
 if [[ "$fail" -ne 0 ]]; then

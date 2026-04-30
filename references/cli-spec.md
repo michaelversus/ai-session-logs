@@ -40,9 +40,9 @@ No subcommands.
 
 ### 5.1 Skill trace (default)
 
-Before accepting a transcript, the script **scans file contents** (line-oriented `grep`) for evidence this skill was used in that session:
+Before accepting a transcript, the script **scans file contents** (line-oriented `grep`) for evidence this skill or plugin was used in that session:
 
-- Case-insensitive match for **`session-transcript`** or **`find_current_session_transcript`** (optional `.sh`).
+- Case-insensitive match for **`ai-session-logs`**, **`session-transcript`**, or **`find_current_session_transcript`** (optional `.sh`).
 
 Candidates for the chosen tool are ordered **by modification time, newest first**. The script **skips** newer files that lack the trace and continues until it finds a match.
 
@@ -81,7 +81,6 @@ With **`--skip-skill-trace`**, the first candidate (newest) is used and stdout i
 
 | Variable | Used for |
 |----------|----------|
-| `CODEX_THREAD_ID` | Codex: prefer transcript whose filename ends with `<id>.jsonl`. |
 | `PWD` | Fallback project root when not in a git repo. |
 | `CLAUDE_CONFIG_DIR` | Claude Code: override `~/.claude` base. |
 | `CODEX_HOME` | Optional. Directory that contains `session_index.jsonl` and `sessions/` (default: `$HOME/.codex`). |
@@ -137,7 +136,7 @@ bash scripts/find_current_session_transcript.sh --tool claude 2>/dev/null | grep
 
 ## 11. Confidence rules (resolver)
 
-- **high:** `--tool` set and file found; or auto mode with a single dominant score (e.g. `CODEX_THREAD_ID` match).
+- **high:** `--tool` set and file found.
 - **medium:** auto mode, winner by score but close runner-up or heuristic only (e.g. newest file in Cursor dir).
 - **low:** weak signals, tie, or fallback to “newest among all tools’ candidates”.
 

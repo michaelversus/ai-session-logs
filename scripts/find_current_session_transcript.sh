@@ -84,11 +84,11 @@ path_slug() {
   echo "${s//./-}"
 }
 
-# True if this transcript mentions this skill (so we prefer sessions where it ran).
+# True if this transcript mentions this skill/plugin (so we prefer sessions where it ran).
 transcript_contains_skill_trace() {
   local f="$1"
   [[ -f "$f" ]] || return 1
-  grep -qiE 'session-transcript|find_current_session_transcript(\.sh)?' "$f" 2>/dev/null
+  grep -qiE 'ai-session-logs|session-transcript|find_current_session_transcript(\.sh)?' "$f" 2>/dev/null
 }
 
 # Print *.jsonl paths under $1 (recursive), newest first. Optional $2 = CODEX thread suffix
@@ -110,23 +110,32 @@ enumerate_jsonl_paths_sorted() {
   done
 }
 
-# Codex: order rollout candidates using ~/.codex/session_index.jsonl (newest index entries first),
+# Codex: order rollout candidates using ~/.codex/session_index.jsonl (newest updated_at first),
 # then fall back to mtime ordering under sessions/. See references/paths.md.
 _codex_paths_from_session_index() {
-  local idx="$1" root="$2" tid="$3"
-  awk '{a[NR]=$0} END {for (i=NR;i>=1;i--) print a[i]}' "$idx" | while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    local id f
-    id="$(printf '%s\n' "$line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-    [[ -z "$id" ]] && continue
+  local idx="$1" root="$2"
+  awk '
+    {
+      id = ""
+      updated = ""
+      if (match($0, /"id"[[:space:]]*:[[:space:]]*"[^"]*"/)) {
+        id = substr($0, RSTART, RLENGTH)
+        sub(/^.*"id"[[:space:]]*:[[:space:]]*"/, "", id)
+        sub(/"$/, "", id)
+      }
+      if (match($0, /"updated_at"[[:space:]]*:[[:space:]]*"[^"]*"/)) {
+        updated = substr($0, RSTART, RLENGTH)
+        sub(/^.*"updated_at"[[:space:]]*:[[:space:]]*"/, "", updated)
+        sub(/"$/, "", updated)
+      }
+      if (id != "") {
+        printf "%s\t%09d\t%s\n", updated, NR, id
+      }
+    }
+  ' "$idx" | LC_ALL=C sort -t $'\t' -r -k1,1 -k2,2 | while IFS=$'\t' read -r _updated _line id; do
+    local f
     f="$(find "$root" -name "*${id}.jsonl" 2>/dev/null | head -1)"
     [[ -z "$f" || ! -f "$f" ]] && continue
-    if [[ -n "$tid" ]]; then
-      case "$f" in
-        *"${tid}.jsonl") ;;
-        *) continue ;;
-      esac
-    fi
     printf '%s\n' "$f"
   done
 }
@@ -134,7 +143,6 @@ _codex_paths_from_session_index() {
 codex_sorted_transcript_candidates() {
   local codex_home="${CODEX_HOME:-$HOME/.codex}"
   local root="$codex_home/sessions"
-  local tid="${1:-}"
   local idx=""
   local tmpmerged
   for cand in "$codex_home/session_index.jsonl" "$codex_home/sessions_index.jsonl"; do
@@ -146,7 +154,7 @@ codex_sorted_transcript_candidates() {
   if [[ -n "$idx" && -s "$idx" ]]; then
     logv "codex: ordering candidates via session index: $idx"
     tmpmerged="$(mktemp "${TMPDIR:-/tmp}/asl-cdx.XXXXXX")"
-    _codex_paths_from_session_index "$idx" "$root" "${tid}" | awk '!seen[$0]++' >"$tmpmerged"
+    _codex_paths_from_session_index "$idx" "$root" | awk '!seen[$0]++' >"$tmpmerged"
     if [[ -s "$tmpmerged" ]]; then
       cat "$tmpmerged"
       rm -f "$tmpmerged"
@@ -155,7 +163,7 @@ codex_sorted_transcript_candidates() {
     rm -f "$tmpmerged"
     logv "codex: session index yielded no matching rollout files; falling back to mtime order"
   fi
-  enumerate_jsonl_paths_sorted "$root" "${tid}"
+  enumerate_jsonl_paths_sorted "$root" ""
 }
 
 # Sets NEWEST_JSONL and SKILL_TRACE from sorted candidate stream (stdin = paths, newest first).
@@ -192,13 +200,12 @@ select_jsonl_with_skill_trace_from_stream() {
 # --- per-tool resolution (skill-trace gate unless --skip-skill-trace) ---
 
 find_codex_match() {
-  local codex_home root tid
+  local codex_home root
   codex_home="${CODEX_HOME:-$HOME/.codex}"
   root="$codex_home/sessions"
-  tid="${CODEX_THREAD_ID:-}"
   NEWEST_JSONL=""
   [[ -d "$root" ]] || return 1
-  select_jsonl_with_skill_trace_from_stream < <(codex_sorted_transcript_candidates "${tid}")
+  select_jsonl_with_skill_trace_from_stream < <(codex_sorted_transcript_candidates)
 }
 
 find_cursor_match() {
@@ -266,15 +273,10 @@ find_copilot_match() {
 
 codex_score_value() {
   local root="${CODEX_HOME:-$HOME/.codex}/sessions"
-  local tid="${CODEX_THREAD_ID:-}"
   [[ -d "$root" ]] || {
     echo 0
     return
   }
-  if [[ -n "$tid" ]] && find "$root" -name "*${tid}.jsonl" -print -quit 2>/dev/null | grep -q .; then
-    echo 5
-    return
-  fi
   if find "$root" -name '*.jsonl' -print -quit 2>/dev/null | grep -q .; then
     echo 1
   else
