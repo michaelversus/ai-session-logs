@@ -21,15 +21,15 @@ description: >
 1. **Pick the tool first:** Ask the user which client/tool produced the current session and pass that value via **`--tool`**. Supported values are `codex`, `cursor`, `claude`, and `copilot`.
 2. **Working directory:** Prefer running from the **repository/workspace root**, or pass `--project-root` explicitly.
 3. **Skill trace (default):** The script only exports a transcript that **already contains** the text `ai-session-logs`, `session-transcript`, or `find_current_session_transcript` somewhere in the file (so we target sessions where this skill actually ran). It tries **newer sessions first**; if the newest has no trace, it moves to older ones. If none match, it errors unless you pass **`--skip-skill-trace`** (then it uses the newest file). Ask the user to mention the skill/plugin name or run the script by name earlier in the session if exports fail.
-4. **Codex:** When `~/.codex/session_index.jsonl` exists, the script resolves indexed sessions to rollout files and orders those files by transcript mtime (**newest writes first**) before the skill-trace filter. This handles active sessions whose rollout file is being appended while the index `updated_at` is stale; see [paths.md](../references/paths.md).
-5. **GitHub Copilot:** Treat as **best-effort**; prefer `GitHub.copilot-chat/transcripts/*.jsonl` and remember that `debug-logs/**` is diagnostic only; see [paths.md](../references/paths.md).
+4. **Codex:** When `~/.codex/session_index.jsonl` exists, the script resolves indexed sessions to rollout files and orders those files by transcript mtime (**newest writes first**) before the skill-trace filter. This handles active sessions whose rollout file is being appended while the index `updated_at` is stale; see [docs/paths.md](docs/paths.md).
+5. **GitHub Copilot:** Treat as **best-effort**; prefer `GitHub.copilot-chat/transcripts/*.jsonl` and remember that `debug-logs/**` is diagnostic only; see [docs/paths.md](docs/paths.md).
 
 ## Command
 
-Prefer resolving the repository root first, then invoke the script by absolute path so agents do not depend on their current working directory:
+For a project installed via `npx skills add`, invoke the bundled script from the installed skill path so the runtime ships with the skill itself:
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex
 ```
 
 Default behavior: resolve the best transcript, **copy** it to `<project-root>/.ai-session-logs/`, print `TOOL=`, `SOURCE=`, `CONFIDENCE=`, `REASON=`, `PROJECT_ROOT=`, `SKILL_TRACE=`, `DEST=` to stdout.
@@ -74,40 +74,40 @@ If the resolved file does **not** contain the current user-message text you chec
 |------|---------|
 | `--tool=NAME` | Required. Use `codex`, `cursor`, `claude`, or `copilot`. |
 | `--no-copy` | Print metadata only; do not write into `.ai-session-logs/`. |
-| `--skip-skill-trace` | Use the newest transcript file even if it lacks the skill trace (see [cli-spec.md](../references/cli-spec.md) §5.1). |
+| `--skip-skill-trace` | Use the newest transcript file even if it lacks the skill trace (see [docs/cli-spec.md](docs/cli-spec.md) §5.1). |
 | `--project-root=DIR` | Override git / `PWD` root used for slug + export path. |
 
-Full contract: [references/cli-spec.md](../references/cli-spec.md). On-disk layout: [references/paths.md](../references/paths.md).
+Full contract: [docs/cli-spec.md](docs/cli-spec.md). On-disk layout: [docs/paths.md](docs/paths.md).
 
 ## Examples for agents
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex --no-copy
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool copilot --no-copy
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool copilot --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool claude --no-copy
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool claude --no-copy
 ```
 
 Parse stdout in shell:
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex --no-copy | grep '^SOURCE='
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex --no-copy | grep '^SOURCE='
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool copilot --skip-skill-trace --no-copy
+bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool copilot --skip-skill-trace --no-copy
 ```
 
 ## Related
 
-- [README.md](../README.md) — install options (skills.sh, Claude plugin, pi, manual).
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — adding tools or changing the CLI.
+- [docs/cli-spec.md](docs/cli-spec.md) — CLI contract and examples.
+- [docs/paths.md](docs/paths.md) — on-disk transcript locations.

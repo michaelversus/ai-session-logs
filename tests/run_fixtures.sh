@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SCRIPT="$ROOT/scripts/find_current_session_transcript.sh"
+SCRIPT="$ROOT/session-transcript/bin/find_current_session_transcript.sh"
 fail=0
 pass() { printf 'ok: %s\n' "$1"; }
 err() { printf 'FAIL: %s\n' "$1" >&2; fail=1; }

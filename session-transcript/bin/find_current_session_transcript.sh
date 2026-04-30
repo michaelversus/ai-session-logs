@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Resolve current AI session *.jsonl (Codex, Cursor, Claude Code, Copilot).
-# See references/cli-spec.md. Targets macOS Bash 3.2+.
+# See docs/cli-spec.md. Targets macOS Bash 3.2+.
 
 set -euo pipefail
 
-VERSION="0.1.6"
+VERSION="0.1.7"
 
 FORCE_TOOL=""
 PROJECT_ROOT_OVERRIDE=""
@@ -21,7 +21,7 @@ SKILL_TRACE=""
 
 usage() {
   cat <<'EOF'
-Usage: bash scripts/find_current_session_transcript.sh [options]
+Usage: bash skills/session-transcript/bin/find_current_session_transcript.sh [options]
 
 Resolve the best current-session *.jsonl transcript and print KEY=value lines.
 By default copies into <project-root>/.ai-session-logs/ (see --no-copy).
@@ -33,7 +33,7 @@ Options:
       --project-root=DIR  Workspace/repo root (default: git root or PWD)
       --no-copy           Only resolve; do not copy
       --skip-skill-trace  Pick newest jsonl only; do not require transcript text
-                          matching this skill (see references/cli-spec.md)
+                          matching this skill (see docs/cli-spec.md)
 EOF
 }
 
@@ -57,7 +57,7 @@ pick_forced() {
       find_claude_match || die "Claude Code: no transcript under sessions/"
       ;;
     copilot)
-      find_copilot_match || die "Copilot: no transcript jsonl under VS Code workspaceStorage (see references/paths.md)"
+      find_copilot_match || die "Copilot: no transcript jsonl under VS Code workspaceStorage (see docs/paths.md)"
       ;;
     *)
       die "Unknown --tool=$TOOL (use codex|cursor|claude|copilot)"
