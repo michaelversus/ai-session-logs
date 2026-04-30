@@ -26,10 +26,10 @@ description: >
 
 ## Command
 
-From the **workspace root** (paths relative to repo root):
+Prefer resolving the repository root first, then invoke the script by absolute path so agents do not depend on their current working directory:
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool codex
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex
 ```
 
 Default behavior: resolve the best transcript, **copy** it to `<project-root>/.ai-session-logs/`, print `TOOL=`, `SOURCE=`, `CONFIDENCE=`, `REASON=`, `PROJECT_ROOT=`, `SKILL_TRACE=`, `DEST=` to stdout.
@@ -82,29 +82,29 @@ Full contract: [references/cli-spec.md](../references/cli-spec.md). On-disk layo
 ## Examples for agents
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool codex --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex --no-copy
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool copilot --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool copilot --no-copy
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool claude --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool claude --no-copy
 ```
 
 Parse stdout in shell:
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool codex --no-copy | grep '^SOURCE='
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex --no-copy | grep '^SOURCE='
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool cursor --skip-skill-trace --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool copilot --skip-skill-trace --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool copilot --skip-skill-trace --no-copy
 ```
 
 ## Related

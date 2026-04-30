@@ -4,7 +4,7 @@ Designed against [clig.dev](https://clig.dev/) (CLI interface guidelines).
 
 ## 1. Name
 
-`find_current_session_transcript.sh` (invoked as `bash scripts/find_current_session_transcript.sh` from the **repository/workspace root**, or with `--project-root`).
+`find_current_session_transcript.sh` (invoked as `bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh"` when inside the repository/workspace, or with `--project-root`).
 
 ## 2. One-liner
 
@@ -13,7 +13,7 @@ Resolve the `*.jsonl` transcript for the requested AI coding client/tool (Codex,
 ## 3. USAGE
 
 ```text
-bash scripts/find_current_session_transcript.sh [options]
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" [options]
 ```
 
 No subcommands.
@@ -48,6 +48,7 @@ With **`--skip-skill-trace`**, the first candidate (newest) is used and stdout i
 - **stdout**
   - **stable `KEY=value` lines** (one key per line), suitable for agents and `grep`:
     - `TOOL=codex|cursor|claude|copilot`
+    - `VERSION=x.y.z`
     - `SOURCE=/absolute/path/to/file.jsonl`
     - `CONFIDENCE=high|medium|low`
     - `REASON=short human explanation`
@@ -91,20 +92,20 @@ Not bundled in v1. Optional: document `--tool` static completions in README late
 ## 10. Examples
 
 ```bash
-# From repo root: resolve a Codex transcript and copy to ./.ai-session-logs/
-bash scripts/find_current_session_transcript.sh --tool codex
+# Resolve a Codex transcript and copy to ./.ai-session-logs/
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool codex
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --project-root /path/to/repo --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --project-root /path/to/repo --no-copy
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool cursor --skip-skill-trace --no-copy
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash
-bash scripts/find_current_session_transcript.sh --tool claude 2>/dev/null | grep '^SOURCE='
+bash "$(git rev-parse --show-toplevel)/scripts/find_current_session_transcript.sh" --tool claude 2>/dev/null | grep '^SOURCE='
 ```
 
 ## 11. Confidence rules (resolver)

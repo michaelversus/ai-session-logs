@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="0.1.5"
+VERSION="0.1.6"
 
 FORCE_TOOL=""
 PROJECT_ROOT_OVERRIDE=""

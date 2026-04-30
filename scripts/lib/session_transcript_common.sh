@@ -91,6 +91,7 @@ compute_dest_path() {
 
 emit_output() {
   printf 'TOOL=%s\n' "$TOOL"
+  printf 'VERSION=%s\n' "$VERSION"
   printf 'SOURCE=%s\n' "$SOURCE"
   printf 'CONFIDENCE=%s\n' "$CONFIDENCE"
   printf 'REASON=%s\n' "$REASON"
