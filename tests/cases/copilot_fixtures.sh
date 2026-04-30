@@ -15,7 +15,7 @@ run_copilot_fixture_tests() {
     export HOME="$TMP/h7"
     out="$(bash "$SCRIPT" --project-root="$proj" --tool copilot --no-copy)"
     echo "$out" | grep -q '^TOOL=copilot' || err "copilot forced: missing TOOL=copilot"
-    echo "$out" | grep -q '^VERSION=0\.1\.7$' || err "copilot validation: missing VERSION=0.1.7"
+    echo "$out" | grep -q '^VERSION=0\.1\.8$' || err "copilot validation: missing VERSION=0.1.8"
     echo "$out" | grep -q '^SOURCE=.*current\.jsonl$' || err "copilot forced: expected current.jsonl"
     echo "$out" | grep -q '^SKILL_TRACE=verified' || err "copilot validation: SKILL_TRACE verified"
     pass "copilot forced path resolves transcript"
