@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "create-cli": {
+      "source": "steipete/agent-scripts",
+      "sourceType": "github",
+      "skillPath": "skills/create-cli/SKILL.md",
+      "computedHash": "fdd51e2a29364032452c650721427b8a9e6deda4a00d68b977181851948289d7"
+    }
+  }
+}

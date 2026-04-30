@@ -1,0 +1,42 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ai-session-logs",
+  "version": "0.1.0",
+  "owner": {
+    "name": "ai-session-logs contributors"
+  },
+  "metadata": {
+    "description": "Resolve and export AI coding session transcripts into the workspace (.ai-session-logs)."
+  },
+  "plugins": [
+    {
+      "name": "ai-session-logs",
+      "description": "Find the current AI session transcript (.jsonl) for Codex, Cursor, Claude Code, or GitHub Copilot; copy exports under the repository workspace root.",
+      "repository": "https://github.com/michaelversus/ai-session-logs",
+      "version": "0.1.0",
+      "author": {
+        "name": "ai-session-logs contributors"
+      },
+      "license": "MIT",
+      "category": "development",
+      "keywords": [
+        "transcripts",
+        "session-logs",
+        "codex",
+        "cursor",
+        "claude-code",
+        "github-copilot",
+        "jsonl"
+      ],
+      "tags": [
+        "transcripts",
+        "codex",
+        "cursor",
+        "claude",
+        "copilot",
+        "logging"
+      ],
+      "source": "./"
+    }
+  ]
+}
