@@ -1,6 +1,6 @@
 # CLI specification: `find_current_session_transcript.sh`
 
-Designed against [.agents/skills/create-cli/references/cli-guidelines.md](.agents/skills/create-cli/references/cli-guidelines.md) and [clig.dev](https://clig.dev/).
+Designed against [clig.dev](https://clig.dev/) (CLI interface guidelines).
 
 ## 1. Name
 
@@ -34,8 +34,23 @@ No subcommands.
 | `-q`, `--quiet` | flag | off | Suppress non-essential stderr (errors still print to stderr). |
 | `-v`, `--verbose` | flag | off | Extra stderr diagnostics (discovery paths, scores). |
 | `--no-color` | flag | off | Reserved; script output is not colored in v1. |
+| `--skip-skill-trace` | flag | off | Take the **newest** candidate `*.jsonl` only. Default behavior walks candidates **newest first** and picks the first file whose contents match a **skill trace** (see §5.1). |
 
 ## 5. I/O contract
+
+### 5.1 Skill trace (default)
+
+Before accepting a transcript, the script **scans file contents** (line-oriented `grep`) for evidence this skill was used in that session:
+
+- Case-insensitive match for **`session-transcript`** or **`find_current_session_transcript`** (optional `.sh`).
+
+Candidates for the chosen tool are ordered **by modification time, newest first**. The script **skips** newer files that lack the trace and continues until it finds a match.
+
+If **no** candidate contains the trace, the script **exits with an error** (and a message suggesting `--skip-skill-trace`). There is **no silent fallback** to an untraced newest file.
+
+With **`--skip-skill-trace`**, the first candidate (newest) is used and stdout includes `SKILL_TRACE=skipped`.
+
+### 5.2 stdout / stderr
 
 - **stdout**
   - Default (no `--json`): **stable `KEY=value` lines** (one key per line), suitable for agents and `grep`:
@@ -43,7 +58,9 @@ No subcommands.
     - `SOURCE=/absolute/path/to/file.jsonl`
     - `CONFIDENCE=high|medium|low`
     - `REASON=short human explanation`
-    - When copy runs or `--dry-run` with copy enabled: `DEST=/absolute/...` and `PROJECT_ROOT=/absolute/...`
+    - `PROJECT_ROOT=/absolute/...`
+    - `SKILL_TRACE=verified|skipped` (verified = trace matched; skipped = `--skip-skill-trace`)
+    - When copy runs or `--dry-run` with copy enabled: `DEST=/absolute/...`
   - With `--json`: single JSON object with the same fields (string values, booleans as JSON booleans if needed).
 - **stderr**
   - Diagnostics, warnings, verbose trace (`-v`), and all fatal errors.
@@ -65,8 +82,9 @@ No subcommands.
 | Variable | Used for |
 |----------|----------|
 | `CODEX_THREAD_ID` | Codex: prefer transcript whose filename ends with `<id>.jsonl`. |
+| `PWD` | Fallback project root when not in a git repo. |
 | `CLAUDE_CONFIG_DIR` | Claude Code: override `~/.claude` base. |
-| `PWD` | Fallback project root when not in a git repo; slug derivation when needed. |
+| `CODEX_HOME` | Optional. Directory that contains `session_index.jsonl` and `sessions/` (default: `$HOME/.codex`). |
 | `HOME` | Base for tool caches (`~/.codex`, `~/.cursor`, etc.). |
 
 **Precedence:** CLI flags override env-derived defaults. No config file in v1.
@@ -95,6 +113,10 @@ bash scripts/find_current_session_transcript.sh --tool codex --verbose
 
 ```bash
 bash scripts/find_current_session_transcript.sh --project-root /path/to/repo --no-copy
+```
+
+```bash
+bash scripts/find_current_session_transcript.sh --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash

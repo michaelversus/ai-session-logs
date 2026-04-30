@@ -1,6 +1,6 @@
 {
   "name": "ai-session-logs",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Find the current AI session transcript (.jsonl) for Codex, Cursor, Claude Code, or GitHub Copilot; copy exports under the repository workspace root.",
   "author": {
     "name": "ai-session-logs contributors"

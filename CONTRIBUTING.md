@@ -10,7 +10,7 @@ This repo follows the Agent Skills layout: skill metadata and instructions live 
 2. Change [scripts/find_current_session_transcript.sh](scripts/find_current_session_transcript.sh) to match.
 3. Update [session-transcript/SKILL.md](session-transcript/SKILL.md) examples.
 
-Use the **create-cli** rubric in [.agents/skills/create-cli](.agents/skills/create-cli/SKILL.md) and [clig.dev](https://clig.dev/) when designing flag changes.
+Use [clig.dev](https://clig.dev/) (CLI interface guidelines) when designing flag changes.
 
 ## Adding a new tool
 

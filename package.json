@@ -1,6 +1,6 @@
 {
   "name": "ai-session-logs",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Agent skill: find AI session transcripts (Codex, Cursor, Claude Code, Copilot) and copy exports into the repository workspace.",
   "keywords": ["pi-package", "agent-skills", "codex", "cursor", "claude", "copilot"],
   "license": "MIT",

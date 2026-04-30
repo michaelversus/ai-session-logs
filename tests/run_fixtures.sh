@@ -15,8 +15,10 @@ trap cleanup EXIT
 TMP="$(mktemp -d)"
 
 # --- Codex + CODEX_THREAD_ID ---
+mkdir -p "$TMP/h1/.codex"
+echo '{"id":"mythreadid","thread_name":"fixture","updated_at":"2026-01-01T00:00:00Z"}' >"$TMP/h1/.codex/session_index.jsonl"
 mkdir -p "$TMP/h1/.codex/sessions/2026/01/01"
-echo '{"role":"user"}' >"$TMP/h1/.codex/sessions/2026/01/01/rollout-abc-mythreadid.jsonl"
+echo '{"role":"user","note":"session-transcript"}' >"$TMP/h1/.codex/sessions/2026/01/01/rollout-abc-mythreadid.jsonl"
 mkdir -p "$TMP/proj1"
 git -C "$TMP/proj1" init -q
 (
@@ -26,6 +28,7 @@ git -C "$TMP/proj1" init -q
   echo "$out" | grep -q '^TOOL=codex' || err "codex forced: missing TOOL=codex"
   echo "$out" | grep -q '^SOURCE=.*mythreadid\.jsonl$' || err "codex forced: SOURCE should match thread id file"
   echo "$out" | grep -q '^CONFIDENCE=high' || err "codex forced: CONFIDENCE high"
+  echo "$out" | grep -q '^SKILL_TRACE=verified' || err "codex forced: SKILL_TRACE verified"
   pass "codex --tool with CODEX_THREAD_ID match"
 )
 
@@ -49,7 +52,7 @@ fi
 
 # --- dry-run creates no output file ---
 mkdir -p "$TMP/h2/.codex/sessions"
-echo '{}' >"$TMP/h2/.codex/sessions/rollout-only.jsonl"
+echo '{"x":1,"use":"session-transcript"}' >"$TMP/h2/.codex/sessions/rollout-only.jsonl"
 mkdir -p "$TMP/proj2"
 git -C "$TMP/proj2" init -q
 (
@@ -64,7 +67,7 @@ git -C "$TMP/proj2" init -q
 
 # --- Default copy creates file under project root ---
 mkdir -p "$TMP/h3/.codex/sessions"
-echo '{"ok":true}' >"$TMP/h3/.codex/sessions/rollout-copytest.jsonl"
+echo '{"ok":true,"skill":"session-transcript"}' >"$TMP/h3/.codex/sessions/rollout-copytest.jsonl"
 mkdir -p "$TMP/proj3"
 git -C "$TMP/proj3" init -q
 (
@@ -75,6 +78,54 @@ git -C "$TMP/proj3" init -q
   files=("$TMP/proj3"/.ai-session-logs/*.jsonl)
   [[ "${#files[@]}" -ge 1 ]] || err "copy: expected at least one jsonl under .ai-session-logs"
   pass "default copy writes under project .ai-session-logs"
+)
+
+# --- Skill trace: skip newer without trace, pick older with trace (Cursor) ---
+PROJ="$TMP/wstrace"
+mkdir -p "$PROJ"
+git -C "$PROJ" init -q
+slug="$(cd "$PROJ" && pwd -P)"
+slug="${slug#/}"
+slug="${slug//\//-}"
+slug="${slug//./-}"
+mkdir -p "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d1"
+mkdir -p "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d2"
+echo '{"n":"newest","no":"trace-here"}' >"$TMP/h4/.cursor/projects/$slug/agent-transcripts/d1/newest.jsonl"
+echo '{"n":"older","use":"session-transcript"}' >"$TMP/h4/.cursor/projects/$slug/agent-transcripts/d2/older.jsonl"
+touch -t 205001010000 "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d1/newest.jsonl"
+touch -t 202001010000 "$TMP/h4/.cursor/projects/$slug/agent-transcripts/d2/older.jsonl"
+(
+  export HOME="$TMP/h4"
+  out="$(bash "$SCRIPT" --project-root="$PROJ" --tool cursor --no-copy)"
+  echo "$out" | grep -q '^SOURCE=.*older\.jsonl$' || err "cursor trace: expected older.jsonl with skill trace"
+  echo "$out" | grep -q '^SKILL_TRACE=verified' || err "cursor trace: SKILL_TRACE verified"
+  pass "cursor prefers older transcript that contains skill trace"
+)
+
+(
+  export HOME="$TMP/h4"
+  out="$(bash "$SCRIPT" --project-root="$PROJ" --tool cursor --no-copy --skip-skill-trace)"
+  echo "$out" | grep -q '^SOURCE=.*newest\.jsonl$' || err "skip trace: expected newest.jsonl"
+  echo "$out" | grep -q '^SKILL_TRACE=skipped' || err "skip trace: SKILL_TRACE skipped"
+  pass "cursor --skip-skill-trace picks newest"
+)
+
+# --- Codex session_index.jsonl order beats mtime (both have skill trace) ---
+mkdir -p "$TMP/h5/.codex/sessions"
+echo '{"id":"oldidx","thread_name":"old","updated_at":"2020-01-01T00:00:00Z"}' >"$TMP/h5/.codex/session_index.jsonl"
+echo '{"id":"newidx","thread_name":"new","updated_at":"2026-01-02T00:00:00Z"}' >>"$TMP/h5/.codex/session_index.jsonl"
+echo '{"x":1,"use":"session-transcript"}' >"$TMP/h5/.codex/sessions/rollout-oldidx.jsonl"
+echo '{"x":2,"use":"session-transcript"}' >"$TMP/h5/.codex/sessions/rollout-newidx.jsonl"
+touch -t 205001010000 "$TMP/h5/.codex/sessions/rollout-oldidx.jsonl"
+touch -t 202001010000 "$TMP/h5/.codex/sessions/rollout-newidx.jsonl"
+mkdir -p "$TMP/proj5"
+git -C "$TMP/proj5" init -q
+(
+  export HOME="$TMP/h5"
+  unset CODEX_THREAD_ID || true
+  out="$(bash "$SCRIPT" --project-root="$TMP/proj5" --tool codex --no-copy)"
+  echo "$out" | grep -q '^SOURCE=.*rollout-newidx\.jsonl$' || err "codex index: expected newer-index session (newidx) despite older mtime"
+  pass "codex session_index order preferred over mtime"
 )
 
 if [[ "$fail" -ne 0 ]]; then

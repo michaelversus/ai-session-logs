@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.1.2"
 
 FORCE_TOOL=""
 PROJECT_ROOT_OVERRIDE=""
@@ -15,6 +15,7 @@ JSON_OUT=0
 PLAIN=0
 QUIET=0
 VERBOSE=0
+SKIP_SKILL_TRACE=0
 
 TOOL=""
 SOURCE=""
@@ -22,6 +23,7 @@ CONFIDENCE=""
 REASON=""
 DEST=""
 PROJECT_ROOT=""
+SKILL_TRACE=""
 
 logv() {
   if [[ "$VERBOSE" -eq 1 && "$QUIET" -eq 0 ]]; then
@@ -54,6 +56,8 @@ Options:
   -q, --quiet             Less stderr noise
   -v, --verbose           More stderr diagnostics
       --no-color          Reserved (no-op)
+      --skip-skill-trace  Pick newest jsonl only; do not require transcript text
+                          matching this skill (see references/cli-spec.md)
 EOF
 }
 
@@ -80,46 +84,121 @@ path_slug() {
   echo "${s//./-}"
 }
 
-# newest *.jsonl under $1 (recursive); sets global NEWEST_JSONL NEWEST_MTIME
-find_newest_jsonl_under() {
-  local root="$1"
-  NEWEST_JSONL=""
-  NEWEST_MTIME=0
-  [[ -d "$root" ]] || return 1
-  while IFS= read -r -d '' f; do
-    local mt
-    mt="$(stat -f '%m' "$f" 2>/dev/null || echo 0)"
-    if [[ "$mt" -gt "$NEWEST_MTIME" ]]; then
-      NEWEST_MTIME="$mt"
-      NEWEST_JSONL="$f"
-    fi
-  done < <(find "$root" -name '*.jsonl' -print0 2>/dev/null)
-  [[ -n "$NEWEST_JSONL" ]]
+# True if this transcript mentions this skill (so we prefer sessions where it ran).
+transcript_contains_skill_trace() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  grep -qiE 'session-transcript|find_current_session_transcript(\.sh)?' "$f" 2>/dev/null
 }
 
-# Pick newest among paths matching *suffix*.jsonl (suffix = thread id)
-find_codex_match() {
-  local root="$HOME/.codex/sessions"
-  local tid="${CODEX_THREAD_ID:-}"
-  NEWEST_JSONL=""
-  NEWEST_MTIME=0
+# Print *.jsonl paths under $1 (recursive), newest first. Optional $2 = CODEX thread suffix
+# (filename must end with "<suffix>.jsonl").
+enumerate_jsonl_paths_sorted() {
+  local root="$1"
+  local tid_suffix="${2:-}"
   [[ -d "$root" ]] || return 1
-  if [[ -n "$tid" ]]; then
-    while IFS= read -r -d '' f; do
+  while IFS= read -r -d '' f; do
+    if [[ -n "$tid_suffix" ]]; then
+      case "$f" in
+        *"${tid_suffix}.jsonl") ;;
+        *) continue ;;
+      esac
+    fi
+    printf '%s\t%s\n' "$(stat -f '%m' "$f" 2>/dev/null || echo 0)" "$f"
+  done < <(find "$root" -name '*.jsonl' -print0 2>/dev/null) | LC_ALL=C sort -t $'\t' -nr -k1,1 | while IFS= read -r line; do
+    printf '%s\n' "$(echo "$line" | cut -f2-)"
+  done
+}
+
+# Codex: order rollout candidates using ~/.codex/session_index.jsonl (newest index entries first),
+# then fall back to mtime ordering under sessions/. See references/paths.md.
+_codex_paths_from_session_index() {
+  local idx="$1" root="$2" tid="$3"
+  awk '{a[NR]=$0} END {for (i=NR;i>=1;i--) print a[i]}' "$idx" | while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local id f
+    id="$(printf '%s\n' "$line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+    [[ -z "$id" ]] && continue
+    f="$(find "$root" -name "*${id}.jsonl" 2>/dev/null | head -1)"
+    [[ -z "$f" || ! -f "$f" ]] && continue
+    if [[ -n "$tid" ]]; then
       case "$f" in
         *"${tid}.jsonl") ;;
         *) continue ;;
       esac
-      local mt
-      mt="$(stat -f '%m' "$f" 2>/dev/null || echo 0)"
-      if [[ "$mt" -gt "$NEWEST_MTIME" ]]; then
-        NEWEST_MTIME="$mt"
-        NEWEST_JSONL="$f"
-      fi
-    done < <(find "$root" -name '*.jsonl' -print0 2>/dev/null)
-    [[ -n "$NEWEST_JSONL" ]] && return 0
+    fi
+    printf '%s\n' "$f"
+  done
+}
+
+codex_sorted_transcript_candidates() {
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  local root="$codex_home/sessions"
+  local tid="${1:-}"
+  local idx=""
+  local tmpmerged
+  for cand in "$codex_home/session_index.jsonl" "$codex_home/sessions_index.jsonl"; do
+    [[ -f "$cand" ]] && {
+      idx="$cand"
+      break
+    }
+  done
+  if [[ -n "$idx" && -s "$idx" ]]; then
+    logv "codex: ordering candidates via session index: $idx"
+    tmpmerged="$(mktemp "${TMPDIR:-/tmp}/asl-cdx.XXXXXX")"
+    _codex_paths_from_session_index "$idx" "$root" "${tid}" | awk '!seen[$0]++' >"$tmpmerged"
+    if [[ -s "$tmpmerged" ]]; then
+      cat "$tmpmerged"
+      rm -f "$tmpmerged"
+      return 0
+    fi
+    rm -f "$tmpmerged"
+    logv "codex: session index yielded no matching rollout files; falling back to mtime order"
   fi
-  find_newest_jsonl_under "$root"
+  enumerate_jsonl_paths_sorted "$root" "${tid}"
+}
+
+# Sets NEWEST_JSONL and SKILL_TRACE from sorted candidate stream (stdin = paths, newest first).
+select_jsonl_with_skill_trace_from_stream() {
+  local f picked=""
+  SKILL_TRACE=""
+  if [[ "$SKIP_SKILL_TRACE" -eq 1 ]]; then
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      [[ -f "$f" ]] || continue
+      NEWEST_JSONL="$f"
+      SKILL_TRACE=skipped
+      return 0
+    done
+    return 1
+  fi
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    [[ -f "$f" ]] || continue
+    if [[ -z "$picked" ]]; then
+      picked="$f"
+    fi
+    if transcript_contains_skill_trace "$f"; then
+      NEWEST_JSONL="$f"
+      SKILL_TRACE=verified
+      return 0
+    fi
+    logv "skip (no skill trace): $f"
+  done
+  [[ -n "$picked" ]] || return 1
+  die "No transcript contained a session-transcript skill trace (need a line matching session-transcript or find_current_session_transcript). Tried newer sessions first. Use --skip-skill-trace to export the newest file anyway. Last tried: $picked"
+}
+
+# --- per-tool resolution (skill-trace gate unless --skip-skill-trace) ---
+
+find_codex_match() {
+  local codex_home root tid
+  codex_home="${CODEX_HOME:-$HOME/.codex}"
+  root="$codex_home/sessions"
+  tid="${CODEX_THREAD_ID:-}"
+  NEWEST_JSONL=""
+  [[ -d "$root" ]] || return 1
+  select_jsonl_with_skill_trace_from_stream < <(codex_sorted_transcript_candidates "${tid}")
 }
 
 find_cursor_match() {
@@ -127,7 +206,9 @@ find_cursor_match() {
   slug="$(path_slug "$PROJECT_ROOT")"
   root="$HOME/.cursor/projects/$slug/agent-transcripts"
   logv "cursor dir: $root"
-  find_newest_jsonl_under "$root"
+  NEWEST_JSONL=""
+  [[ -d "$root" ]] || return 1
+  select_jsonl_with_skill_trace_from_stream < <(enumerate_jsonl_paths_sorted "$root" "")
 }
 
 find_claude_match() {
@@ -136,19 +217,21 @@ find_claude_match() {
   slug="$(path_slug "$PROJECT_ROOT")"
   root="$base/projects/$slug/sessions"
   logv "claude sessions dir: $root"
-  find_newest_jsonl_under "$root"
+  NEWEST_JSONL=""
+  [[ -d "$root" ]] || return 1
+  select_jsonl_with_skill_trace_from_stream < <(enumerate_jsonl_paths_sorted "$root" "")
 }
 
-# Match VS Code workspaceStorage folder whose workspace.json references project root
-find_copilot_match() {
+# All Copilot jsonl candidates for this workspace, newest first (merged across storage folders).
+copilot_sorted_jsonl_paths() {
   local needle="$PROJECT_ROOT"
-  NEWEST_JSONL=""
-  NEWEST_MTIME=0
+  local tmp base ws copilot_dir
+  tmp="$(mktemp "${TMPDIR:-/tmp}/asl-copilot.XXXXXX")"
   local bases=(
     "$HOME/Library/Application Support/Code/User"
     "$HOME/Library/Application Support/Code - Insiders/User"
   )
-  local base ws copilot_dir
+  : >"$tmp"
   for base in "${bases[@]}"; do
     [[ -d "$base/workspaceStorage" ]] || continue
     for ws in "$base/workspaceStorage"/*; do
@@ -159,23 +242,30 @@ find_copilot_match() {
       fi
       copilot_dir="$ws/GitHub.copilot-chat"
       [[ -d "$copilot_dir" ]] || continue
-      local f mt
       while IFS= read -r -d '' f; do
-        mt="$(stat -f '%m' "$f" 2>/dev/null || echo 0)"
-        if [[ "$mt" -gt "$NEWEST_MTIME" ]]; then
-          NEWEST_MTIME="$mt"
-          NEWEST_JSONL="$f"
-        fi
+        printf '%s\t%s\n' "$(stat -f '%m' "$f" 2>/dev/null || echo 0)" "$f" >>"$tmp"
       done < <(find "$copilot_dir" -name '*.jsonl' -print0 2>/dev/null)
     done
   done
-  [[ -n "$NEWEST_JSONL" ]]
+  if [[ ! -s "$tmp" ]]; then
+    rm -f "$tmp"
+    return 1
+  fi
+  LC_ALL=C sort -t $'\t' -nr -k1,1 "$tmp" | while IFS= read -r line; do
+    printf '%s\n' "$(echo "$line" | cut -f2-)"
+  done
+  rm -f "$tmp"
+}
+
+find_copilot_match() {
+  NEWEST_JSONL=""
+  select_jsonl_with_skill_trace_from_stream < <(copilot_sorted_jsonl_paths)
 }
 
 # --- scoring (auto mode; score only, does not mutate NEWEST_JSONL) ---
 
 codex_score_value() {
-  local root="$HOME/.codex/sessions"
+  local root="${CODEX_HOME:-$HOME/.codex}/sessions"
   local tid="${CODEX_THREAD_ID:-}"
   [[ -d "$root" ]] || {
     echo 0
@@ -304,7 +394,7 @@ pick_auto() {
     copilot) find_copilot_match || die "Copilot: no debug jsonl for workspace" ;;
   esac
   SOURCE="$NEWEST_JSONL"
-  REASON="auto-selected ${TOOL} (scores codex=$sc cursor=$sw claude=$scl copilot=$scp)"
+  REASON="auto-selected ${TOOL} (scores codex=$sc cursor=$sw claude=$scl copilot=$scp; SKILL_TRACE=${SKILL_TRACE:-})"
 }
 
 pick_forced() {
@@ -328,7 +418,7 @@ pick_forced() {
   esac
   SOURCE="$NEWEST_JSONL"
   CONFIDENCE="high"
-  REASON="tool forced via --tool"
+  REASON="tool forced via --tool (SKILL_TRACE=${SKILL_TRACE:-})"
 }
 
 compute_dest_path() {
@@ -369,6 +459,7 @@ emit_output() {
     if [[ -n "$DEST" ]]; then
       printf ',"DEST":%s' "$(json_escape "$DEST")"
     fi
+    printf ',"SKILL_TRACE":%s' "$(json_escape "${SKILL_TRACE:-}")"
     printf '}\n'
     return
   fi
@@ -377,6 +468,7 @@ emit_output() {
   printf 'CONFIDENCE=%s\n' "$CONFIDENCE"
   printf 'REASON=%s\n' "$REASON"
   printf 'PROJECT_ROOT=%s\n' "$PROJECT_ROOT"
+  printf 'SKILL_TRACE=%s\n' "${SKILL_TRACE:-}"
   if [[ -n "$DEST" ]]; then
     printf 'DEST=%s\n' "$DEST"
   fi
@@ -422,6 +514,7 @@ while [[ $# -gt 0 ]]; do
     -q | --quiet) QUIET=1 ;;
     -v | --verbose) VERBOSE=1 ;;
     --no-color) ;;
+    --skip-skill-trace) SKIP_SKILL_TRACE=1 ;;
     *)
       printf 'ERROR: Unknown option: %s (try --help)\n' "$1" >&2
       exit 2
