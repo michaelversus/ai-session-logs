@@ -21,7 +21,7 @@ SKILL_TRACE=""
 
 usage() {
   cat <<'EOF'
-Usage: bash skills/session-transcript/bin/find_current_session_transcript.sh [options]
+Usage: bash <skill-root>/bin/find_current_session_transcript.sh [options]
 
 Resolve the best current-session *.jsonl transcript and print KEY=value lines.
 By default copies into <project-root>/.ai-session-logs/ (see --no-copy).

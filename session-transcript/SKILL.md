@@ -26,10 +26,18 @@ description: >
 
 ## Command
 
-For a project installed via `npx skills add`, invoke the bundled script from the installed skill path so the runtime ships with the skill itself:
+Resolve the bundled script path from the workspace root. In this repository the skill lives at `session-transcript/`; in installed consumer projects it may live at `.agent/skills/session-transcript/`, with `skills/session-transcript/` as a fallback for older layouts:
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool codex
 ```
 
 Default behavior: resolve the best transcript, **copy** it to `<project-root>/.ai-session-logs/`, print `TOOL=`, `SOURCE=`, `CONFIDENCE=`, `REASON=`, `PROJECT_ROOT=`, `SKILL_TRACE=`, `DEST=` to stdout.
@@ -82,29 +90,77 @@ Full contract: [docs/cli-spec.md](docs/cli-spec.md). On-disk layout: [docs/paths
 ## Examples for agents
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool codex --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool copilot --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool copilot --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool claude --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool claude --no-copy
 ```
 
 Parse stdout in shell:
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex --no-copy | grep '^SOURCE='
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool codex --no-copy | grep '^SOURCE='
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool copilot --skip-skill-trace --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool copilot --skip-skill-trace --no-copy
 ```
 
 ## Related

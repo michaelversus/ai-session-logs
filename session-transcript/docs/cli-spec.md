@@ -4,7 +4,7 @@ Designed against [clig.dev](https://clig.dev/) (CLI interface guidelines).
 
 ## 1. Name
 
-`find_current_session_transcript.sh` (invoked as `bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh"` for installed project skills, or with `--project-root`).
+`find_current_session_transcript.sh` (invoked from the workspace root via `session-transcript/bin/find_current_session_transcript.sh` in this repository, `.agent/skills/session-transcript/bin/find_current_session_transcript.sh` in installed project skills, or `skills/session-transcript/bin/find_current_session_transcript.sh` in older layouts).
 
 ## 2. One-liner
 
@@ -12,11 +12,17 @@ Resolve the `*.jsonl` transcript for the requested AI coding client/tool (Codex,
 
 ## 3. USAGE
 
-```text
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" [options]
+```bash
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" [options]
 ```
-
-No subcommands.
 
 ## 4. Global flags
 
@@ -24,11 +30,10 @@ No subcommands.
 |------|------|---------|-------------|
 | `-h`, `--help` | flag | — | Print usage to stdout and exit `0`. Other flags ignored. |
 | `--version` | flag | — | Print semver to stdout and exit `0`. |
-| `--tool` | string | required | Required tool: `codex`, `cursor`, `claude`, `copilot`. |
+| `--tool` | enum | none | Required. One of `codex`, `cursor`, `claude`, `copilot`. |
 | `--project-root` | path | auto | Repository/workspace root. **Auto:** `git rev-parse --show-toplevel` when inside a git work tree, else current working directory (`PWD`). |
 | `--no-copy` | flag | off | Only resolve and print metadata; do not write a copy under the workspace. |
 | `--skip-skill-trace` | flag | off | Take the **newest** candidate `*.jsonl` only. Default behavior walks candidates **newest first** and picks the first file whose contents match a **skill trace** (see §5.1). |
-
 ## 5. I/O contract
 
 ### 5.1 Skill trace (default)
@@ -93,19 +98,51 @@ Not bundled in v1. Optional: document `--tool` static completions in README late
 
 ```bash
 # Resolve a Codex transcript and copy to ./.ai-session-logs/
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool codex
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool codex
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --project-root /path/to/repo --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --project-root /path/to/repo --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool cursor --skip-skill-trace --no-copy
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool cursor --skip-skill-trace --no-copy
 ```
 
 ```bash
-bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool claude 2>/dev/null | grep '^SOURCE='
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT_PATH="$PROJECT_ROOT/session-transcript/bin/find_current_session_transcript.sh"
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/.agent/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  SCRIPT_PATH="$PROJECT_ROOT/skills/session-transcript/bin/find_current_session_transcript.sh"
+fi
+bash "$SCRIPT_PATH" --tool claude 2>/dev/null | grep '^SOURCE='
 ```
 
 ## 11. Confidence rules (resolver)

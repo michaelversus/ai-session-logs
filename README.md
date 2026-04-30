@@ -4,7 +4,7 @@ Agent skill that finds **current session** `*.jsonl` transcripts for **Codex**, 
 
 ## How to use this skill
 
-Ask your agent to use the **session-transcript** skill when you want to **locate**, **export**, or **archive** the active session log. The agent should first confirm which client/tool is in use, then run the bundled Bash script from the installed skill path, for example `bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool <tool>` (or pass `--project-root`).
+Ask your agent to use the **session-transcript** skill when you want to **locate**, **export**, or **archive** the active session log. The agent should first confirm which client/tool is in use, then resolve the bundled Bash script from the workspace root: use `session-transcript/bin/find_current_session_transcript.sh` in this repository, `.agent/skills/session-transcript/bin/find_current_session_transcript.sh` in installed agent-skill projects, and `skills/session-transcript/bin/find_current_session_transcript.sh` as a fallback for older layouts.
 
 ## How to install this skill
 
@@ -64,7 +64,7 @@ pi install https://github.com/michaelversus/ai-session-logs
 
 ## Verify
 
-Your agent should read [session-transcript/SKILL.md](session-transcript/SKILL.md) and run `bash "$(git rev-parse --show-toplevel)/skills/session-transcript/bin/find_current_session_transcript.sh" --tool <tool>` as documented.
+Your agent should read [session-transcript/SKILL.md](session-transcript/SKILL.md) and run the documented layout-aware command that checks `session-transcript/bin/find_current_session_transcript.sh` first, then `.agent/skills/session-transcript/bin/find_current_session_transcript.sh`, and finally `skills/session-transcript/bin/find_current_session_transcript.sh`.
 
 ## GitHub Copilot caveat
 
