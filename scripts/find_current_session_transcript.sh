@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="0.1.4"
+VERSION="0.1.5"
 
 FORCE_TOOL=""
 PROJECT_ROOT_OVERRIDE=""
@@ -254,9 +254,10 @@ copilot_sorted_jsonl_paths() {
       fi
       copilot_dir="$ws/GitHub.copilot-chat"
       [[ -d "$copilot_dir" ]] || continue
+      # Prefer real chat JSONL under transcripts/; ignore debug-logs/**/main.jsonl (often a single session_start line).
       while IFS= read -r -d '' f; do
         printf '%s\t%s\n' "$(stat -f '%m' "$f" 2>/dev/null || echo 0)" "$f" >>"$tmp"
-      done < <(find "$copilot_dir" -name '*.jsonl' -print0 2>/dev/null)
+      done < <(find "$copilot_dir" -name '*.jsonl' -not -path '*/debug-logs/*' -print0 2>/dev/null)
     done
   done
   if [[ ! -s "$tmp" ]]; then
@@ -337,7 +338,7 @@ copilot_score_value() {
       fi
       copilot_dir="$ws/GitHub.copilot-chat"
       [[ -d "$copilot_dir" ]] || continue
-      if find "$copilot_dir" -name '*.jsonl' -print -quit 2>/dev/null | grep -q .; then
+      if find "$copilot_dir" -name '*.jsonl' -not -path '*/debug-logs/*' -print -quit 2>/dev/null | grep -q .; then
         echo 2
         return
       fi
@@ -398,7 +399,7 @@ pick_auto() {
     codex) find_codex_match || die "Codex: no jsonl" ;;
     cursor) find_cursor_match || die "Cursor: no jsonl for slug $(path_slug "$PROJECT_ROOT")" ;;
     claude) find_claude_match || die "Claude: no jsonl for project" ;;
-    copilot) find_copilot_match || die "Copilot: no debug jsonl for workspace" ;;
+    copilot) find_copilot_match || die "Copilot: no transcript jsonl for workspace (expected under GitHub.copilot-chat/transcripts/; debug-logs are ignored)" ;;
   esac
   SOURCE="$NEWEST_JSONL"
   REASON="auto-selected ${TOOL} (scores codex=$sc cursor=$sw claude=$scl copilot=$scp; SKILL_TRACE=${SKILL_TRACE:-})"
@@ -417,7 +418,7 @@ pick_forced() {
       find_claude_match || die "Claude Code: no transcript under sessions/"
       ;;
     copilot)
-      find_copilot_match || die "Copilot: no debug jsonl under VS Code workspaceStorage (see references/paths.md)"
+      find_copilot_match || die "Copilot: no transcript jsonl under VS Code workspaceStorage (see references/paths.md)"
       ;;
     *)
       die "Unknown --tool=$TOOL (use codex|cursor|claude|copilot)"
