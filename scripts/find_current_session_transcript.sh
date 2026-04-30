@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="0.1.3"
+VERSION="0.1.4"
 
 FORCE_TOOL=""
 PROJECT_ROOT_OVERRIDE=""
@@ -110,7 +110,9 @@ enumerate_jsonl_paths_sorted() {
   done
 }
 
-# Codex: order rollout candidates using ~/.codex/session_index.jsonl (newest updated_at first),
+# Codex: resolve rollout candidates using ~/.codex/session_index.jsonl, then order by
+# rollout file mtime because active sessions are appended while session_index updated_at
+# can remain stale until later.
 # then fall back to mtime ordering under sessions/. See references/paths.md.
 _codex_paths_from_session_index() {
   local idx="$1" root="$2"
@@ -132,10 +134,13 @@ _codex_paths_from_session_index() {
         printf "%s\t%09d\t%s\n", updated, NR, id
       }
     }
-  ' "$idx" | LC_ALL=C sort -t $'\t' -r -k1,1 -k2,2 | while IFS=$'\t' read -r _updated _line id; do
-    local f
+  ' "$idx" | while IFS=$'\t' read -r updated line id; do
+    local f mtime
     f="$(find "$root" -name "*${id}.jsonl" 2>/dev/null | head -1)"
     [[ -z "$f" || ! -f "$f" ]] && continue
+    mtime="$(stat -f '%m' "$f" 2>/dev/null || echo 0)"
+    printf '%s\t%s\t%s\t%s\n' "$mtime" "$updated" "$line" "$f"
+  done | LC_ALL=C sort -t $'\t' -nr -k1,1 -r -k2,2 -k3,3 | while IFS=$'\t' read -r _mtime _updated _line f; do
     printf '%s\n' "$f"
   done
 }

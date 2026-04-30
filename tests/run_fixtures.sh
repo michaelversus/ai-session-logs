@@ -136,7 +136,7 @@ echo '{"n":"package","use":"ai-session-logs"}' >"$TMP/h4b/.cursor/projects/$slug
   pass "cursor --skip-skill-trace picks newest"
 )
 
-# --- Codex session_index.jsonl updated_at order beats file mtime and line order ---
+# --- Codex live transcript mtime beats stale session_index updated_at ---
 mkdir -p "$TMP/h5/.codex/sessions"
 echo '{"id":"newidx","thread_name":"new","updated_at":"2026-01-02T00:00:00Z"}' >"$TMP/h5/.codex/session_index.jsonl"
 echo '{"id":"oldidx","thread_name":"old","updated_at":"2020-01-01T00:00:00Z"}' >>"$TMP/h5/.codex/session_index.jsonl"
@@ -150,8 +150,8 @@ git -C "$TMP/proj5" init -q
   export HOME="$TMP/h5"
   unset CODEX_THREAD_ID || true
   out="$(bash "$SCRIPT" --project-root="$TMP/proj5" --tool codex --no-copy)"
-  echo "$out" | grep -q '^SOURCE=.*rollout-newidx\.jsonl$' || err "codex index: expected newer updated_at session (newidx) despite older mtime"
-  pass "codex session_index updated_at order preferred over mtime"
+  echo "$out" | grep -q '^SOURCE=.*rollout-oldidx\.jsonl$' || err "codex index: expected newer mtime session (oldidx) despite stale updated_at"
+  pass "codex transcript mtime preferred over stale session_index updated_at"
 )
 
 if [[ "$fail" -ne 0 ]]; then

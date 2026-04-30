@@ -19,7 +19,7 @@ description: >
 
 1. **Working directory:** Prefer running from the **repository/workspace root**, or pass `--project-root` explicitly.
 2. **Skill trace (default):** The script only exports a transcript that **already contains** the text `ai-session-logs`, `session-transcript`, or `find_current_session_transcript` somewhere in the file (so we target sessions where this skill actually ran). It tries **newer sessions first**; if the newest has no trace, it moves to older ones. If none match, it errors unless you pass **`--skip-skill-trace`** (then it uses the newest file). Ask the user to mention the skill/plugin name or run the script by name earlier in the session if exports fail.
-3. **Codex:** When `~/.codex/session_index.jsonl` exists, transcript order follows that index sorted by each session's `updated_at` value (**newest first**) before the skill-trace filter; see [paths.md](../references/paths.md).
+3. **Codex:** When `~/.codex/session_index.jsonl` exists, the script resolves indexed sessions to rollout files and orders those files by transcript mtime (**newest writes first**) before the skill-trace filter. This handles active sessions whose rollout file is being appended while the index `updated_at` is stale; see [paths.md](../references/paths.md).
 4. **Confidence:** If stdout shows `CONFIDENCE=low` or `medium`, **confirm with the user** before treating `SOURCE` as the correct session (see hybrid resolution in [cli-spec.md](../references/cli-spec.md)).
 5. **GitHub Copilot:** Treat as **best-effort**; see [paths.md](../references/paths.md#github-copilot-limitations).
 
