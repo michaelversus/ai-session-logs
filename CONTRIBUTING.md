@@ -15,9 +15,9 @@ Use [clig.dev](https://clig.dev/) (CLI interface guidelines) when designing flag
 ## Adding a new tool
 
 1. Add a row to [references/paths.md](references/paths.md).
-2. Implement discovery in `scripts/find_current_session_transcript.sh` (new `find_*` function + scoring branch).
+2. Add a new tool-specific shell file under `scripts/lib/` with the relevant `find_*` function and any tool-specific helpers.
 3. Extend `--tool` values in the CLI spec and script.
-4. Add a fixture under `tests/fixtures/` and a case in `tests/run_fixtures.sh`.
+4. Add a tool-specific test case file under `tests/cases/` and source it from `tests/run_fixtures.sh`.
 
 ## Tests
 

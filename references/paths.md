@@ -18,13 +18,11 @@ This table complements [cli-spec.md](cli-spec.md). **Slug** = absolute workspace
 
 ## Export location (all tools)
 
-Resolved transcripts are **copied** (unless `--no-copy` or `--dry-run`) to:
+Resolved transcripts are **copied** (unless `--no-copy`) to:
 
 ```text
 <repository-or-workspace-root>/.ai-session-logs/
 ```
-
-Override with `--output-dir`. Add `.ai-session-logs/` to `.gitignore` unless you intend to commit exports.
 
 ## Example absolute paths (illustrative)
 
